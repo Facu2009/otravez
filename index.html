@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Stock | Andes PC</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --surface2: #1a1a24;
+            --border: #2a2a3a;
+            --accent: #4f6ef7;
+            --accent2: #7c3aed;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --text: #e8e8f0;
+            --text-muted: #6b6b80;
+            --text-dim: #9898b0;
+            --sidebar-w: 240px;
+            --topbar-h: 60px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+        /* ════════════════════════════════
+           LOGIN
+        ════════════════════════════════ */
+        #loginScreen {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem;
+            background: radial-gradient(ellipse at 60% 30%, rgba(79,110,247,0.14) 0%, transparent 55%),
+                        radial-gradient(ellipse at 20% 80%, rgba(124,58,237,0.09) 0%, transparent 50%),
+                        var(--bg);
+        }
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            width: 100%; max-width: 400px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+        .login-logo { text-align: center; margin-bottom: 2rem; }
+        .login-logo .brand { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.12em; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .login-logo .sub { font-size: 0.7rem; color: var(--text-muted); font-family: 'Space Mono', monospace; letter-spacing: 0.15em; margin-top: 4px; }
+        .login-title { font-size: 0.95rem; font-weight: 600; color: var(--text-dim); text-align: center; margin-bottom: 1.8rem; }
+        .l-fg { margin-bottom: 1.1rem; }
+        .l-fg label { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
+        .l-fg input { width: 100%; padding: 0.75rem 1rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 1rem; transition: border-color 0.2s; }
+        .l-fg input:focus { outline: none; border-color: var(--accent); }
+        .login-btn { width: 100%; padding: 0.9rem; background: var(--accent); color: white; border: none; border-radius: 10px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; margin-top: 0.25rem; }
+        .login-btn:hover { background: #3d5ce0; }
+        .login-btn:active { transform: scale(0.98); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-err { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--red); margin-top: 1rem; display: none; align-items: center; gap: 0.5rem; }
+
+        /* ════════════════════════════════
+           APP SHELL
+        ════════════════════════════════ */
+        #app { display: none; }
+
+        /* ── Overlay behind drawer ── */
+        .drawer-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(2px);
+            z-index: 90;
+        }
+        .drawer-overlay.open { display: block; }
+
+        /* ════════════════════════════════
+           SIDEBAR / DRAWER
+        ════════════════════════════════ */
+        .sidebar {
+            position: fixed; left: 0; top: 0;
+            width: var(--sidebar-w); height: 100vh;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            z-index: 100;
+            transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+        }
+        /* On mobile: hidden by default, slides in */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+        }
+
+        .sidebar-logo { padding: 1.2rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-logo .brand { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.1em; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-logo .sub { font-size: 0.62rem; color: var(--text-muted); font-family: 'Space Mono', monospace; margin-top: 1px; }
+        .sidebar-close { display: none; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); width: 30px; height: 30px; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; flex-shrink: 0; }
+        @media (max-width: 768px) { .sidebar-close { display: flex; } }
+        .sidebar-close:hover { color: var(--text); }
+
+        .sidebar-nav { padding: 0.75rem 0; flex: 1; overflow-y: auto; }
+        .nav-section { padding: 0.5rem 1.4rem 0.2rem; font-size: 0.65rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Space Mono', monospace; }
+
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.4rem; color: var(--text-dim); cursor: pointer; transition: all 0.18s; font-size: 0.88rem; font-weight: 600; border-left: 3px solid transparent; user-select: none; }
+        .nav-item:hover { color: var(--text); background: var(--surface2); }
+        .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(79,110,247,0.08); }
+        .nav-item i { width: 17px; text-align: center; font-size: 0.85rem; }
+
+        .sidebar-footer { padding: 1rem 1.4rem; border-top: 1px solid var(--border); }
+        .user-row { display: flex; align-items: center; gap: 0.75rem; }
+        .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+        .user-info { flex: 1; min-width: 0; }
+        .user-email { font-size: 0.72rem; color: var(--text-dim); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .logout-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; transition: all 0.15s; flex-shrink: 0; }
+        .logout-btn:hover { color: var(--red); border-color: rgba(239,68,68,0.5); }
+
+        /* ════════════════════════════════
+           MAIN
+        ════════════════════════════════ */
+        .main {
+            margin-left: var(--sidebar-w);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            transition: margin 0.28s;
+        }
+        @media (max-width: 768px) { .main { margin-left: 0; } }
+
+        /* ── Topbar ── */
+        .topbar {
+            height: var(--topbar-h);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 50;
+            gap: 0.75rem;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+        .hamburger { display: none; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); width: 38px; height: 38px; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: all 0.15s; flex-shrink: 0; }
+        @media (max-width: 768px) { .hamburger { display: flex; } }
+        .hamburger:hover { color: var(--text); border-color: var(--text-dim); }
+        .topbar h1 { font-size: 1.05rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .topbar-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.18s; border: none; white-space: nowrap; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #3d5ce0; }
+        .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+        .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+        /* On mobile: icon-only for reload btn */
+        @media (max-width: 480px) {
+            .btn-reload-text { display: none; }
+            .btn { padding: 0.5rem 0.7rem; }
+        }
+
+        /* ── Content ── */
+        .content { padding: 1.25rem; flex: 1; }
+
+        /* ── Filters ── */
+        .filters-bar { display: flex; gap: 0.6rem; margin-bottom: 1.1rem; flex-wrap: wrap; align-items: center; }
+        .search-box { position: relative; flex: 1; min-width: 160px; }
+        .search-box i { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem; pointer-events: none; }
+        .search-box input { width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.2rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.88rem; }
+        .search-box input:focus { outline: none; border-color: var(--accent); }
+        .filter-select { padding: 0.6rem 0.85rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.82rem; cursor: pointer; flex: 1; min-width: 120px; }
+        .filter-select:focus { outline: none; border-color: var(--accent); }
+
+        /* ════════════════════════════════
+           PRODUCT LIST
+           Desktop = table, Mobile = cards
+        ════════════════════════════════ */
+
+        /* ── Desktop table ── */
+        .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: var(--surface2); border-bottom: 1px solid var(--border); }
+        th { padding: 0.8rem 1.1rem; text-align: left; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Space Mono', monospace; }
+        td { padding: 0.8rem 1.1rem; border-bottom: 1px solid rgba(42,42,58,0.6); font-size: 0.88rem; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .tbl-emoji { font-size: 1.3rem; text-align: center; }
+        .p-name { font-weight: 600; color: var(--text); }
+        .p-specs { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; font-family: 'Space Mono', monospace; }
+        .price-tag { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--green); }
+        .stock-ind { display: flex; align-items: center; gap: 0.45rem; }
+        .s-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .s-in  { background: var(--green);  box-shadow: 0 0 5px rgba(16,185,129,0.5); }
+        .s-low { background: var(--yellow); box-shadow: 0 0 5px rgba(245,158,11,0.5); }
+        .s-out { background: var(--red);    box-shadow: 0 0 5px rgba(239,68,68,0.5); }
+        .s-num { font-family: 'Space Mono', monospace; font-size: 0.85rem; font-weight: 700; }
+        .row-actions { display: flex; gap: 0.35rem; }
+        .icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: none; cursor: pointer; transition: all 0.15s; font-size: 0.8rem; }
+        .ib-edit   { background: rgba(79,110,247,0.12); color: var(--accent); }
+        .ib-edit:hover   { background: rgba(79,110,247,0.25); }
+        .ib-delete { background: rgba(239,68,68,0.12); color: var(--red); }
+        .ib-delete:hover { background: rgba(239,68,68,0.25); }
+
+        /* category badges */
+        .cat-badge { display: inline-block; padding: 0.22rem 0.55rem; border-radius: 5px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .cat-procesador   { background: rgba(79,110,247,0.15);  color: #818cf8; }
+        .cat-gpu          { background: rgba(124,58,237,0.15);  color: #a78bfa; }
+        .cat-ram          { background: rgba(16,185,129,0.15);  color: #34d399; }
+        .cat-motherboard  { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+        .cat-fuente       { background: rgba(239,68,68,0.15);   color: #f87171; }
+        .cat-almacenamiento { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+        .cat-refrigeracion  { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .cat-accesorio    { background: rgba(236,72,153,0.15);  color: #f472b6; }
+
+        @media (max-width: 768px) { .table-wrap { display: none; } }
+
+        /* ── Mobile cards ── */
+        .cards-list { display: none; flex-direction: column; gap: 0.75rem; }
+        @media (max-width: 768px) { .cards-list { display: flex; } }
+
+        .prod-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            gap: 0.9rem;
+            align-items: flex-start;
+            transition: border-color 0.15s;
+        }
+        .prod-card:active { border-color: var(--accent); }
+        .card-emoji { font-size: 2rem; flex-shrink: 0; width: 44px; text-align: center; margin-top: 2px; }
+        .card-body { flex: 1; min-width: 0; }
+        .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.3rem; }
+        .card-name { font-size: 0.95rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+        .card-price { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--green); font-size: 0.9rem; flex-shrink: 0; }
+        .card-specs { font-size: 0.75rem; color: var(--text-muted); font-family: 'Space Mono', monospace; margin-bottom: 0.6rem; line-height: 1.4; }
+        .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .card-meta-left { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .card-actions { display: flex; gap: 0.35rem; }
+
+        /* ── Empty / Loading ── */
+        .empty-state { text-align: center; padding: 3.5rem 1.5rem; color: var(--text-muted); }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.35; display: block; }
+        .empty-state p { font-size: 0.95rem; }
+        .loading-msg { text-align: center; padding: 3rem; color: var(--text-muted); }
+
+        /* ════════════════════════════════
+           MODAL
+        ════════════════════════════════ */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: flex-end; justify-content: center; padding: 0; }
+        .modal-overlay.open { display: flex; }
+        /* Desktop: centered */
+        @media (min-width: 600px) { .modal-overlay { align-items: center; padding: 1rem; } }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px 20px 0 0;
+            width: 100%; max-height: 92vh;
+            overflow-y: auto;
+            animation: slideUpModal 0.28s cubic-bezier(.4,0,.2,1);
+        }
+        @media (min-width: 600px) {
+            .modal { border-radius: 16px; max-width: 520px; animation: fadeInModal 0.22s ease; }
+        }
+        @keyframes slideUpModal { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeInModal  { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* drag handle on mobile */
+        .modal::before {
+            content: '';
+            display: block;
+            width: 40px; height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0.85rem auto 0;
+        }
+        @media (min-width: 600px) { .modal::before { display: none; } }
+
+        .modal-header { padding: 1rem 1.25rem 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .modal-title { font-size: 1.05rem; font-weight: 700; }
+        .modal-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 0 1.25rem 1.5rem; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+        .fg { display: flex; flex-direction: column; gap: 0.35rem; }
+        .fg.full { grid-column: 1 / -1; }
+        @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } .fg.full { grid-column: auto; } }
+        .fg label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+        .fg input, .fg textarea, .fg select {
+            padding: 0.7rem 0.85rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 0.9rem; width: 100%;
+            /* bigger touch targets on mobile */
+        }
+        @media (max-width: 768px) { .fg input, .fg textarea, .fg select { font-size: 16px; /* prevent iOS zoom */ } }
+        .fg input:focus, .fg textarea:focus, .fg select:focus { outline: none; border-color: var(--accent); }
+        .fg textarea { resize: vertical; min-height: 72px; }
+
+        .form-actions { display: flex; gap: 0.65rem; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+        @media (max-width: 480px) { .form-actions { flex-direction: column-reverse; } .form-actions .btn { width: 100%; justify-content: center; padding: 0.8rem; } }
+
+        /* ── Confirm modal ── */
+        .confirm-inner { max-width: 360px; }
+        .confirm-icon { font-size: 2.5rem; text-align: center; margin-bottom: 0.75rem; }
+        .confirm-text { text-align: center; color: var(--text-dim); font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.25rem; }
+
+        /* ════════════════════════════════
+           TOAST
+        ════════════════════════════════ */
+        .toast-wrap { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; width: calc(100% - 2rem); max-width: 360px; pointer-events: none; }
+        .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1.1rem; display: flex; align-items: center; gap: 0.65rem; font-size: 0.875rem; font-weight: 600; animation: toastUp 0.3s ease; width: 100%; pointer-events: all; }
+        @keyframes toastUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toast.success { border-left: 3px solid var(--green); } .toast.success i { color: var(--green); }
+        .toast.error   { border-left: 3px solid var(--red);   } .toast.error   i { color: var(--red);   }
+        .toast.info    { border-left: 3px solid var(--accent); } .toast.info    i { color: var(--accent); }
+
+        /* ── Spinner ── */
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.4rem; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- ══════ LOGIN ══════ -->
+<div id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="brand">ANDES PC</div>
+            <div class="sub">PANEL DE ADMINISTRACIÓN</div>
+        </div>
+        <p class="login-title">Ingresá con tu cuenta</p>
+        <div class="l-fg">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="tu@email.com" autocomplete="email" inputmode="email">
+        </div>
+        <div class="l-fg">
+            <label>Contraseña</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="login-btn" id="loginBtn" onclick="doLogin()">
+            <i class="fas fa-sign-in-alt"></i> Ingresar
+        </button>
+        <div class="login-err" id="loginErr">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="loginErrMsg"></span>
+        </div>
+    </div>
+</div>
+
+<!-- ══════ APP ══════ -->
+<div id="app">
+
+    <!-- Drawer overlay -->
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeSidebar()"></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div>
+                <div class="brand">ANDES PC</div>
+                <div class="sub">ADMIN</div>
+            </div>
+            <button class="sidebar-close" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">Categorías</div>
+            <div class="nav-item active" onclick="filterCat('all',this)"><i class="fas fa-th-large"></i><span>Todos</span></div>
+            <div class="nav-item" onclick="filterCat('procesador',this)"><i class="fas fa-microchip"></i><span>Procesadores</span></div>
+            <div class="nav-item" onclick="filterCat('gpu',this)"><i class="fas fa-desktop"></i><span>Placas de Video</span></div>
+            <div class="nav-item" onclick="filterCat('ram',this)"><i class="fas fa-memory"></i><span>Memoria RAM</span></div>
+            <div class="nav-item" onclick="filterCat('motherboard',this)"><i class="fas fa-server"></i><span>Motherboards</span></div>
+            <div class="nav-item" onclick="filterCat('fuente',this)"><i class="fas fa-bolt"></i><span>Fuentes</span></div>
+            <div class="nav-item" onclick="filterCat('almacenamiento',this)"><i class="fas fa-hdd"></i><span>Almacenamiento</span></div>
+            <div class="nav-item" onclick="filterCat('refrigeracion',this)"><i class="fas fa-snowflake"></i><span>Refrigeración</span></div>
+            <div class="nav-item" onclick="filterCat('accesorio',this)"><i class="fas fa-keyboard"></i><span>Accesorios</span></div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-row">
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-info">
+                    <div class="user-email" id="userEmail">—</div>
+                </div>
+                <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="hamburger" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Todos los Productos</h1>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-ghost" onclick="reloadProducts()">
+                    <i class="fas fa-rotate-right"></i>
+                    <span class="btn-reload-text">Actualizar</span>
+                </button>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i>
+                    <span>Nuevo</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Filters -->
+            <div class="filters-bar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar..." oninput="render()">
+                </div>
+                <select class="filter-select" id="stockFilter" onchange="render()">
+                    <option value="all">Todo stock</option>
+                    <option value="in">Con stock</option>
+                    <option value="low">Stock bajo</option>
+                    <option value="out">Sin stock</option>
+                </select>
+                <select class="filter-select" id="sortSel" onchange="render()">
+                    <option value="nombre">A-Z</option>
+                    <option value="precio_asc">Precio ↑</option>
+                    <option value="precio_desc">Precio ↓</option>
+                    <option value="stock_desc">Stock ↓</option>
+                </select>
+            </div>
+
+            <!-- Desktop table -->
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px"></th>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th style="width:90px">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="6"><div class="loading-msg"><span class="spinner"></span> Cargando...</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile cards -->
+            <div class="cards-list" id="cardsList">
+                <div class="loading-msg"><span class="spinner"></span> Cargando...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-overlay" id="productModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">Nuevo Producto</span>
+            <button class="modal-close" onclick="closeModal('productModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="fg full">
+                    <label>Nombre</label>
+                    <input type="text" id="f-nombre" placeholder="ej: Ryzen 5 7600X">
+                </div>
+                <div class="fg">
+                    <label>Categoría</label>
+                    <select id="f-categoria">
+                        <option value="procesador">Procesador</option>
+                        <option value="gpu">Placa de Video</option>
+                        <option value="ram">Memoria RAM</option>
+                        <option value="motherboard">Motherboard</option>
+                        <option value="fuente">Fuente de Poder</option>
+                        <option value="almacenamiento">Almacenamiento</option>
+                        <option value="refrigeracion">Refrigeración</option>
+                        <option value="accesorio">Accesorio</option>
+                    </select>
+                </div>
+                <div class="fg">
+                    <label>Emoji</label>
+                    <input type="text" id="f-emoji" placeholder="ej: 🔲">
+                </div>
+                <div class="fg">
+                    <label>Precio ($)</label>
+                    <input type="number" id="f-precio" placeholder="ej: 150000" min="0" inputmode="numeric">
+                </div>
+                <div class="fg">
+                    <label>Stock</label>
+                    <input type="number" id="f-stock" placeholder="ej: 5" min="0" inputmode="numeric">
+                </div>
+                <div class="fg full">
+                    <label>Especificaciones</label>
+                    <textarea id="f-specs" placeholder="ej: 6 núcleos, 4.7GHz, Socket AM5"></textarea>
+                </div>
+                <div class="fg full">
+                    <label>URL imagen (opcional)</label>
+                    <input type="url" id="f-imagen" placeholder="https://...">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" onclick="closeModal('productModal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveProduct()" id="saveBtn">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal confirm-inner">
+        <div class="modal-header" style="margin-bottom:0">
+            <span class="modal-title">Eliminar producto</span>
+            <button class="modal-close" onclick="closeModal('confirmModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding-top:1.25rem">
+            <div class="confirm-icon">🗑️</div>
+            <p class="confirm-text">¿Seguro que querés eliminar <strong id="delName"></strong>?<br>Esta acción no se puede deshacer.</p>
+            <div class="form-actions" style="margin-top:0;padding-top:0;border:none">
+                <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmDelete()" id="delBtn"><i class="fas fa-trash"></i> Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- FIREBASE -->
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    const app  = initializeApp({
+        apiKey: "AIzaSyBRKLtxUVVR6GrNL9QLhZsR0jPx4yjnhCo",
+        authDomain: "andes-pc-bb5c4.firebaseapp.com",
+        projectId: "andes-pc-bb5c4",
+        storageBucket: "andes-pc-bb5c4.firebasestorage.app",
+        messagingSenderId: "687831951001",
+        appId: "1:687831951001:web:81be0a20b32e337a3cba08"
+    });
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+
+    /* ── helpers ── */
+    const $  = id => document.getElementById(id);
+    const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const escA = s => String(s).replace(/'/g,"\\'");
+    const CAT_LABELS = { procesador:'Procesador', gpu:'GPU', ram:'RAM', motherboard:'Mother', fuente:'Fuente', almacenamiento:'Almacen.', refrigeracion:'Refrig.', accesorio:'Accesorio' };
+    const TITLES = { all:'Todos los Productos', procesador:'Procesadores', gpu:'Placas de Video', ram:'Memoria RAM', motherboard:'Motherboards', fuente:'Fuentes de Poder', almacenamiento:'Almacenamiento', refrigeracion:'Refrigeración', accesorio:'Accesorios' };
+
+    /* ── state ── */
+    let all = [], cat = 'all', editId = null, delId = null;
+
+    /* ── auth listener ── */
+    onAuthStateChanged(auth, user => {
+        if (user) {
+            $('loginScreen').style.display = 'none';
+            $('app').style.display = 'block';
+            $('userEmail').textContent = user.email;
+            $('userAvatar').textContent = user.email[0].toUpperCase();
+            loadProducts();
+        } else {
+            $('loginScreen').style.display = 'flex';
+            $('app').style.display = 'none';
+        }
+    });
+
+    /* ── login ── */
+    window.doLogin = async () => {
+        const email = $('loginEmail').value.trim();
+        const pass  = $('loginPassword').value;
+        const btn   = $('loginBtn');
+        $('loginErr').style.display = 'none';
+        if (!email||!pass) { showErr('Completá email y contraseña'); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Ingresando...';
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+        } catch(e) {
+            const m = { 'auth/invalid-credential':'Email o contraseña incorrectos','auth/user-not-found':'Email no encontrado','auth/wrong-password':'Contraseña incorrecta','auth/too-many-requests':'Demasiados intentos. Esperá unos minutos','auth/invalid-email':'Email inválido' };
+            showErr(m[e.code]||'Error: '+e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Ingresar';
+        }
+    };
+    function showErr(msg) { $('loginErrMsg').textContent = msg; $('loginErr').style.display = 'flex'; }
+    $('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') window.doLogin(); });
+    $('loginEmail').addEventListener('keydown',    e => { if(e.key==='Enter') $('loginPassword').focus(); });
+
+    window.doLogout = async () => { await signOut(auth); toast('Sesión cerrada','info'); };
+
+    /* ── sidebar ── */
+    window.openSidebar  = () => { $('sidebar').classList.add('open'); $('drawerOverlay').classList.add('open'); document.body.style.overflow='hidden'; };
+    window.closeSidebar = () => { $('sidebar').classList.remove('open'); $('drawerOverlay').classList.remove('open'); document.body.style.overflow=''; };
+
+    /* ── load ── */
+    async function loadProducts() {
+        setLoading(true);
+        try {
+            const snap = await getDocs(query(collection(db,'productos'), orderBy('nombre')));
+            all = snap.docs.map(d => ({id:d.id,...d.data()}));
+            render(); updateStats();
+        } catch(e) {
+            setLoading(false, true, e.message);
+            toast('Error al cargar','error');
+        }
+    }
+    function setLoading(yes, err=false, msg='') {
+        const html = yes
+            ? `<div class="loading-msg"><span class="spinner"></span> Cargando...</div>`
+            : err ? `<div class="loading-msg" style="color:var(--red)"><i class="fas fa-exclamation-triangle"></i> ${msg}</div>`
+            : '';
+        if (yes||err) { $('tableBody').innerHTML=`<tr><td colspan="6">${html}</td></tr>`; $('cardsList').innerHTML=html; }
+    }
+    function updateStats() { /* sidebar stats removed for cleaner mobile UI */ }
+
+    /* ── render ── */
+    window.render = function() {
+        const search = $('searchInput').value.toLowerCase();
+        const sf     = $('stockFilter').value;
+        const sort   = $('sortSel').value;
+        let list = [...all];
+        if (cat!=='all') list = list.filter(p => p.categoria===cat);
+        if (search) list = list.filter(p => (p.nombre||'').toLowerCase().includes(search)||(p.especificaciones||'').toLowerCase().includes(search));
+        if (sf==='in')  list = list.filter(p => p.stock>3);
+        if (sf==='low') list = list.filter(p => p.stock>0&&p.stock<=3);
+        if (sf==='out') list = list.filter(p => !p.stock||p.stock<=0);
+        if (sort==='nombre')       list.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+        else if(sort==='precio_asc')  list.sort((a,b)=>(a.precio||0)-(b.precio||0));
+        else if(sort==='precio_desc') list.sort((a,b)=>(b.precio||0)-(a.precio||0));
+        else if(sort==='stock_desc')  list.sort((a,b)=>(b.stock||0)-(a.stock||0));
+
+        renderTable(list);
+        renderCards(list);
+    };
+
+    function dotClass(p) { return !p.stock||p.stock<=0?'s-out':p.stock<=3?'s-low':'s-in'; }
+    function dotColor(p) { return !p.stock||p.stock<=0?'var(--red)':p.stock<=3?'var(--yellow)':'var(--green)'; }
+
+    function renderTable(list) {
+        const tbody = $('tableBody');
+        if (!list.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><i class="fas fa-box-open"></i><p>Sin productos</p></div></td></tr>`; return; }
+        tbody.innerHTML = list.map(p => `
+            <tr>
+                <td class="tbl-emoji">${p.emoji||'📦'}</td>
+                <td>
+                    <div class="p-name">${esc(p.nombre||'')}</div>
+                    <div class="p-specs">${esc((p.especificaciones||'').substring(0,55))}${(p.especificaciones||'').length>55?'…':''}</div>
+                </td>
+                <td><span class="cat-badge cat-${p.categoria}">${CAT_LABELS[p.categoria]||p.categoria}</span></td>
+                <td><span class="price-tag">$${(p.precio||0).toLocaleString('es-AR')}</span></td>
+                <td>
+                    <div class="stock-ind">
+                        <div class="s-dot ${dotClass(p)}"></div>
+                        <span class="s-num" style="color:${dotColor(p)}">${p.stock??0}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="row-actions">
+                        <button class="icon-btn ib-edit" onclick="openEditModal('${p.id}')" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn ib-delete" onclick="openDelConfirm('${p.id}','${escA(p.nombre||'')}')" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    }
+
+    function renderCards(list) {
+        const el = $('cardsList');
+        if (!list.length) { el.innerHTML=`<div class="empty-state"><i class="fas fa-box-open"></i><p>Sin productos</p></div>`; return; }
+        el.innerHTML = list.map(p => `
+            <div class="prod-card">
+                <div class="card-emoji">${p.emoji||'📦'}</div>
+                <div class="card-body">
+                    <div class="card-top">
+                        <div class="card-name">${esc(p.nombre||'')}</div>
+                        <div class="card-price">$${(p.precio||0).toLocaleString('es-AR')}</div>
+                    </div>
+                    <div class="card-specs">${esc((p.especificaciones||'').substring(0,80))}${(p.especificaciones||'').length>80?'…':''}</div>
+                    <div class="card-meta">
+                        <div class="card-meta-left">
+                            <span class="cat-badge cat-${p.categoria}">${CAT_LABELS[p.categoria]||p.categoria}</span>
+                            <div class="stock-ind">
+                                <div class="s-dot ${dotClass(p)}"></div>
+                                <span class="s-num" style="color:${dotColor(p)}">${p.stock??0} uds</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="icon-btn ib-edit" onclick="openEditModal('${p.id}')"><i class="fas fa-pen"></i></button>
+                            <button class="icon-btn ib-delete" onclick="openDelConfirm('${p.id}','${escA(p.nombre||'')}')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>`).join('');
+    }
+
+    /* ── category filter ── */
+    window.filterCat = function(c, el) {
+        cat = c;
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+        $('pageTitle').textContent = TITLES[c]||'Productos';
+        render();
+        closeSidebar();
+    };
+
+    /* ── modals ── */
+    window.openAddModal = () => {
+        editId = null;
+        $('modalTitle').textContent = 'Nuevo Producto';
+        $('saveBtn').innerHTML = '<i class="fas fa-plus"></i> Agregar';
+        clearForm();
+        $('productModal').classList.add('open');
+    };
+    window.openEditModal = id => {
+        const p = all.find(x => x.id===id);
+        if (!p) return;
+        editId = id;
+        $('modalTitle').textContent = 'Editar Producto';
+        $('saveBtn').innerHTML = '<i class="fas fa-save"></i> Guardar';
+        fillForm(p);
+        $('productModal').classList.add('open');
+    };
+    window.openDelConfirm = (id, name) => {
+        delId = id;
+        $('delName').textContent = name;
+        $('confirmModal').classList.add('open');
+    };
+    window.closeModal = id => { $(id).classList.remove('open'); };
+    document.querySelectorAll('.modal-overlay').forEach(o => {
+        o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
+    });
+
+    /* ── save ── */
+    window.saveProduct = async () => {
+        const nombre = $('f-nombre').value.trim();
+        const precio = parseFloat($('f-precio').value);
+        const stock  = parseInt($('f-stock').value);
+        if (!nombre)              { toast('El nombre es obligatorio','error'); return; }
+        if (isNaN(precio)||precio<0) { toast('El precio no es válido','error'); return; }
+        if (isNaN(stock)||stock<0)   { toast('El stock no es válido','error'); return; }
+        const data = {
+            nombre, precio, stock,
+            categoria: $('f-categoria').value,
+            emoji: $('f-emoji').value.trim()||null,
+            especificaciones: $('f-specs').value.trim(),
+            imagen: $('f-imagen').value.trim()||null,
+        };
+        const btn = $('saveBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Guardando...';
+        try {
+            if (editId) {
+                await updateDoc(doc(db,'productos',editId), data);
+                const i = all.findIndex(p => p.id===editId);
+                if (i!==-1) all[i] = {id:editId,...data};
+                toast('Producto actualizado ✓','success');
+            } else {
+                const ref = await addDoc(collection(db,'productos'), data);
+                all.push({id:ref.id,...data});
+                toast('Producto agregado ✓','success');
+            }
+            render(); closeModal('productModal');
+        } catch(e) {
+            console.error(e);
+            toast('Error: '+e.message,'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = editId ? '<i class="fas fa-save"></i> Guardar' : '<i class="fas fa-plus"></i> Agregar';
+        }
+    };
+
+    /* ── delete ── */
+    window.confirmDelete = async () => {
+        if (!delId) return;
+        const btn = $('delBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Eliminando...';
+        try {
+            await deleteDoc(doc(db,'productos',delId));
+            all = all.filter(p => p.id!==delId);
+            render(); closeModal('confirmModal');
+            toast('Producto eliminado','info');
+        } catch(e) {
+            toast('Error: '+e.message,'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash"></i> Eliminar';
+        }
+    };
+
+    /* ── reload ── */
+    window.reloadProducts = async () => { await loadProducts(); toast('Stock actualizado','info'); };
+
+    /* ── form helpers ── */
+    function clearForm() {
+        ['f-nombre','f-emoji','f-specs','f-imagen'].forEach(id => $(id).value='');
+        $('f-precio').value=''; $('f-stock').value=''; $('f-categoria').value='procesador';
+    }
+    function fillForm(p) {
+        $('f-nombre').value = p.nombre||'';
+        $('f-categoria').value = p.categoria||'procesador';
+        $('f-emoji').value = p.emoji||'';
+        $('f-precio').value = p.precio||'';
+        $('f-stock').value = p.stock??'';
+        $('f-specs').value = p.especificaciones||'';
+        $('f-imagen').value = p.imagen||'';
+    }
+
+    /* ── toast ── */
+    function toast(msg, type='info') {
+        const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.innerHTML = `<i class="fas ${icons[type]}"></i> ${msg}`;
+        $('toastWrap').appendChild(t);
+        setTimeout(() => t.remove(), 3200);
+    }
+    window.toast = toast;
+</script>
+</body>
+</html>
